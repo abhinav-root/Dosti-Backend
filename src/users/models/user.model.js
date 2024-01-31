@@ -44,10 +44,4 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", function (next) {
-  const user = this;
-  user.password = bcrypt.hashSync(user.password, 12);
-  next();
-});
-
 module.exports = mongoose.model("User", userSchema);

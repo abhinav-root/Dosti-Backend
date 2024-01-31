@@ -1,5 +1,5 @@
 const { StatusCodes } = require("http-status-codes");
-const userModel = require("../../users/models/user.model");
+const userModel = require("../users/models/user.model");
 
 const isEmailInUse = async (req, res, next) => {
   const userExists = await userModel.findByEmail(req.body.email);
