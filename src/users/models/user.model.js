@@ -31,7 +31,12 @@ const userSchema = new mongoose.Schema(
       type: SchemaTypes.String,
       required: true,
     },
-    refreshToken: { type: SchemaTypes.String, default: null, trim: true },
+    refreshToken: {
+      type: SchemaTypes.String,
+      default: null,
+      trim: true,
+      index: true,
+    },
     profileImageUrl: { type: SchemaTypes.String, default: null, trim: true },
   },
   {
@@ -43,5 +48,7 @@ const userSchema = new mongoose.Schema(
     },
   }
 );
+
+userSchema.index({ firstName: 1, lastName: 1 });
 
 module.exports = mongoose.model("User", userSchema);

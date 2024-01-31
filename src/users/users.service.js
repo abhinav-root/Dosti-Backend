@@ -15,4 +15,21 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-module.exports = { getUserProfile };
+const searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    const result = await userModel
+      .find({
+        $or: [{ firstName: { $regex: q } }, { lastName: { $regex: q } }],
+      })
+      .select("-password -refreshToken -updatedAt");
+    return res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+  }
+};
+
+module.exports = { getUserProfile, searchUsers };
