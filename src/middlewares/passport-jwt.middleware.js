@@ -9,7 +9,6 @@ passport.use(
       secretOrKey: process.env.ACCESS_TOKEN_SECRET,
     },
     function (payload, cb) {
-      console.log({ payload });
       return cb(null, payload);
     }
   )

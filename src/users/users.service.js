@@ -17,10 +17,12 @@ const getUserProfile = async (req, res) => {
 
 const searchUsers = async (req, res) => {
   try {
+    const user = req.user;
     const { q } = req.query;
     const result = await userModel
       .find({
         $or: [{ firstName: { $regex: q } }, { lastName: { $regex: q } }],
+        _id: { $ne: user._id },
       })
       .select("-password -refreshToken -updatedAt");
     return res.status(StatusCodes.OK).json(result);
