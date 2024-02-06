@@ -1,9 +1,14 @@
-const { body } = require("express-validator");
+const { body, param, query } = require("express-validator");
 const validateRequest = require("../middlewares/validate-request");
-const { createMessage } = require("./messages.service");
+const {
+  createMessage,
+  getAllMessages,
+  markMessagesRead,
+} = require("./messages.service");
 
 const router = require("express").Router();
 
+// Create message
 router.post(
   "/",
   body("chatId").isMongoId().trim(),
@@ -12,5 +17,17 @@ router.post(
   validateRequest,
   createMessage
 );
+
+// Get all messages
+router.get(
+  "/:chatId",
+  param("chatId").isMongoId(),
+  query("pageNo").isNumeric(),
+  query("limit").isNumeric(),
+  validateRequest,
+  getAllMessages
+);
+
+router.patch("/read", body("chatId").isMongoId().trim(), markMessagesRead);
 
 module.exports = router;

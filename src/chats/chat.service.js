@@ -1,5 +1,6 @@
 const { StatusCodes, ReasonPhrases } = require("http-status-codes");
 const chatModel = require("./models/chat.model");
+const messageModel = require("../messages/models/message.model");
 
 const createChat = async (req, res) => {
   try {
@@ -17,6 +18,7 @@ const createChat = async (req, res) => {
     const chat = new chatModel();
     chat.users.push(_id, friendId);
     await chat.save();
+    await chat.populate("users")
     return res
       .status(StatusCodes.CREATED)
       .json({ message: "Chat created", data: chat });
@@ -34,7 +36,8 @@ const getAllChats = async (req, res) => {
     const chats = await chatModel
       .find({ users: _id })
       .populate("users", "-password -refreshToken")
-      .populate("latestMessage");
+      .populate("latestMessage")
+      .sort({ updatedAt: -1 });
     return res.status(StatusCodes.OK).json(chats);
   } catch (err) {
     console.log(err);
@@ -44,4 +47,18 @@ const getAllChats = async (req, res) => {
   }
 };
 
-module.exports = { createChat, getAllChats };
+const deleteChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    await messageModel.deleteMany({ chat: chatId });
+    await chatModel.findByIdAndDelete(chatId);
+    return res.status(StatusCodes.OK).json({message: "Chat deleted"});
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+  }
+};
+
+module.exports = { createChat, getAllChats, deleteChat };

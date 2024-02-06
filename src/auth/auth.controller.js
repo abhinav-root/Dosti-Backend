@@ -1,7 +1,14 @@
 const router = require("express").Router();
 const { body } = require("express-validator");
 const validateRequest = require("../middlewares/validate-request");
-const { signup, login, refresh, logout } = require("./auth.service");
+const {
+  signup,
+  login,
+  refresh,
+  logout,
+  forgotPassword,
+  resetPassword,
+} = require("./auth.service");
 const { isEmailInUse } = require("../middlewares/is-email-in-use.middleware");
 const passport = require("passport");
 
@@ -90,5 +97,21 @@ router.get(
 );
 
 router.delete("/logout", logout);
+
+router.post(
+  "/forgot-password",
+  body("email").isEmail(),
+  validateRequest,
+  forgotPassword
+);
+
+router.post(
+  "/reset-password",
+  body("token").notEmpty().isString(),
+  body("userId").isMongoId(),
+  body("password").notEmpty().isString().isLength({ min: 8, max: 50 }),
+  validateRequest,
+  resetPassword
+);
 
 module.exports = router;

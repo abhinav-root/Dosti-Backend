@@ -1,7 +1,10 @@
 const { StatusCodes, ReasonPhrases } = require("http-status-codes");
 const userModel = require("../users/models/user.model");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const bcrypt = require("bcrypt");
+const resetPasswordModel = require("./models/reset-password.model");
+const { sendForgotPasswordEmail } = require("../config/email");
 
 const signup = async (req, res) => {
   try {
@@ -34,7 +37,10 @@ const login = async (req, res) => {
     const user = await userModel.findById(userId);
     user.refreshToken = refreshToken;
     await user.save();
-    res.status(StatusCodes.OK).json({ accessToken });
+    const userProfile = await userModel
+      .findById(userId)
+      .select("-password -refreshToken").lean();
+    res.status(StatusCodes.OK).json({ accessToken, ...userProfile });
   } catch (err) {
     console.log(err);
     return res
@@ -74,8 +80,72 @@ const logout = async (req, res) => {
       return res.sendStatus(StatusCodes.FORBIDDEN);
     }
     const cookieOptions = getCookieOptions();
-    res.clearCookie("jwt", cookieOptions);
+    res.clearCookie("jwt", { ...cookieOptions, maxAge: 0 });
     res.status(StatusCodes.OK).json({ message: "Logged out" });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await userModel.findByEmail(email);
+    if (!user) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ message: "Email not found" });
+    }
+    let token = await resetPasswordModel.findOne({ userId: user._id });
+    if (token) {
+      await token.deleteOne();
+    }
+    let resetToken = crypto.randomBytes(32).toString("hex");
+    console.log({resetToken})
+    const hash = bcrypt.hashSync(resetToken, 12);
+    console.log({hash})
+    await new resetPasswordModel({
+      userId: user._id,
+      token: hash,
+    }).save();
+    const link = `${process.env.REACT_APP_URL}/reset-password?token=${resetToken}&id=${user._id}`;
+    sendForgotPasswordEmail(email, link);
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "A reset password link has been send to your email" });
+  } catch (err) {
+    console.log(err);
+    return res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ message: ReasonPhrases.INTERNAL_SERVER_ERROR });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { userId, token, password } = req.body;
+    let passwordResetToken = await resetPasswordModel.findOne({ userId });
+    if (!passwordResetToken) {
+      throw new Error("Invalid or expired password reset token");
+    }
+    console.log({tokenFE: token, tokenSaved: passwordResetToken.token})
+    const isValid = await bcrypt.compare(token, passwordResetToken.token);
+    if (!isValid) {
+      throw new Error("Invalid or expired password reset token");
+    }
+    const hash = await bcrypt.hash(password, 12);
+    await userModel.updateOne(
+      { _id: userId },
+      { $set: { password: hash } },
+      { new: true }
+    );
+    await resetPasswordModel.deleteOne();
+    return res
+      .status(StatusCodes.OK)
+      .json({ message: "Password changed successfully" });
   } catch (err) {
     console.log(err);
     return res
@@ -86,7 +156,7 @@ const logout = async (req, res) => {
 
 const getAccessToken = (payload) => {
   return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: "30s",
+    expiresIn: "5s",
   });
 };
 
@@ -99,9 +169,16 @@ const getRefreshToken = (payload) => {
 const getCookieOptions = () => {
   const options = {
     secure: true,
-    expiresIn: 1000 * 60 * 60 * 24,
+    maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
   };
   return options;
 };
-module.exports = { signup, login, refresh, logout };
+module.exports = {
+  signup,
+  login,
+  refresh,
+  logout,
+  forgotPassword,
+  resetPassword,
+};

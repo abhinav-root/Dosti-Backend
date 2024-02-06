@@ -1,7 +1,13 @@
 const router = require("express").Router();
-const { query } = require("express-validator");
-const { getUserProfile, searchUsers } = require("./users.service");
+const { query, body } = require("express-validator");
+const {
+  getUserProfile,
+  searchUsers,
+  uploadProfileImage,
+} = require("./users.service");
 const validateRequest = require("../middlewares/validate-request");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 
 router.get("/profile", getUserProfile);
 
@@ -15,6 +21,12 @@ router.get(
     .toLowerCase(),
   validateRequest,
   searchUsers
+);
+
+router.post(
+  "/profile/profileImage",
+  upload.single("image"),
+  uploadProfileImage
 );
 
 module.exports = router;
